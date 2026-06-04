@@ -24,14 +24,13 @@ const CONFIG = {
 
 // All possible wheel outcomes — used for the frequency panel even when count is 0.
 // Any wheel result that comes through the sheet but isn't in this list will still
-// show up in the panel automatically (with auto-classified styling).
+// show up in the panel automatically (with auto-classified styling). This is useful
+// for historical days from earlier wheel versions.
 const WHEEL_OPTIONS = [
-  { label: '+$5',                   type: 'cash' },
   { label: '+$25',                  type: 'cash' },
   { label: '+$50',                  type: 'cash' },
   { label: '+$100',                 type: 'cash' },
   { label: '100 SC',                type: 'sc' },
-  { label: '1,000 SC',              type: 'sc' },
   { label: 'Gamble $1,000 more',    type: 'other' },
   { label: 'Gamble $500 tomorrow',  type: 'other' },
   { label: 'Mystery Gift',          type: 'other' },
