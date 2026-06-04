@@ -23,15 +23,18 @@ const CONFIG = {
 };
 
 // All possible wheel outcomes — used for the frequency panel even when count is 0.
+// Any wheel result that comes through the sheet but isn't in this list will still
+// show up in the panel automatically (with auto-classified styling).
 const WHEEL_OPTIONS = [
-  { label: '+$5',                type: 'cash' },
-  { label: '+$25',               type: 'cash' },
-  { label: '+$50',               type: 'cash' },
-  { label: '+$100',              type: 'cash' },
-  { label: '100 SC',             type: 'sc' },
-  { label: '1,000 SC',           type: 'sc' },
-  { label: 'Gamble $1,000 more', type: 'other' },
-  { label: 'Mystery Gift',       type: 'other' },
+  { label: '+$5',                   type: 'cash' },
+  { label: '+$25',                  type: 'cash' },
+  { label: '+$50',                  type: 'cash' },
+  { label: '+$100',                 type: 'cash' },
+  { label: '100 SC',                type: 'sc' },
+  { label: '1,000 SC',              type: 'sc' },
+  { label: 'Gamble $1,000 more',    type: 'other' },
+  { label: 'Gamble $500 tomorrow',  type: 'other' },
+  { label: 'Mystery Gift',          type: 'other' },
 ];
 
 // ============================================================
@@ -261,30 +264,54 @@ function renderChart(days) {
 
 // ----------- WHEEL FREQUENCY -----------
 function renderWheelFrequency(days) {
+  // Start with the known options at zero
   const counts = {};
-  WHEEL_OPTIONS.forEach((w) => { counts[w.label] = 0; });
-  days.forEach((d) => {
-    if (d.wheelResult && counts[d.wheelResult] !== undefined) {
-      counts[d.wheelResult]++;
-    }
+  const types = {};
+  WHEEL_OPTIONS.forEach((w) => {
+    counts[w.label] = 0;
+    types[w.label] = w.type;
   });
 
-  // sort: hits first (by count desc), then untouched options
-  const sorted = WHEEL_OPTIONS.slice().sort((a, b) => {
-    const ca = counts[a.label], cb = counts[b.label];
-    if (cb !== ca) return cb - ca;
-    return 0;
+  // Tally — auto-discover any unknown wheel results that show up
+  days.forEach((d) => {
+    if (!d.wheelResult) return;
+    if (counts[d.wheelResult] === undefined) {
+      counts[d.wheelResult] = 0;
+      // Auto-classify by content so styling still works
+      types[d.wheelResult] =
+        d.wheelResult.includes('SC') ? 'sc' :
+        d.wheelResult.startsWith('+$') ? 'cash' : 'other';
+    }
+    counts[d.wheelResult]++;
+  });
+
+  // Sort: hits first (by count desc), then zeros in original WHEEL_OPTIONS order
+  const knownOrder = {};
+  WHEEL_OPTIONS.forEach((w, i) => { knownOrder[w.label] = i; });
+
+  const entries = Object.keys(counts).map((label) => ({
+    label,
+    count: counts[label],
+    type: types[label],
+  }));
+
+  entries.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    const ai = knownOrder[a.label] ?? 999;
+    const bi = knownOrder[b.label] ?? 999;
+    return ai - bi;
   });
 
   const list = document.getElementById('wheel-list');
   list.innerHTML = '';
-  sorted.forEach((opt) => {
-    const count = counts[opt.label];
+  entries.forEach(({ label, count, type }) => {
     const li = document.createElement('li');
-    const hitClass = count === 0 ? 'is-zero' : (opt.type === 'sc' ? 'is-hit-sc' : opt.type === 'cash' ? 'is-hit-cash' : '');
+    const hitClass = count === 0
+      ? 'is-zero'
+      : (type === 'sc' ? 'is-hit-sc' : type === 'cash' ? 'is-hit-cash' : '');
     li.className = hitClass;
     li.innerHTML = `
-      <span class="wheel-label">${opt.label}</span>
+      <span class="wheel-label">${escapeHtml(label)}</span>
       <span class="wheel-count">${count}×</span>
     `;
     list.appendChild(li);
