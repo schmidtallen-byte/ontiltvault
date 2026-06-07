@@ -26,10 +26,15 @@ const CONFIG = {
 // Any wheel result that comes through the sheet but isn't in this list will still
 // show up in the panel automatically (with auto-classified styling). This is useful
 // for historical days from earlier wheel versions.
+//
+// Cash labels are prefixed with "Cash" to prevent Google Sheets from auto-detecting
+// values like "$100" as currency-formatted numbers (which breaks string comparisons
+// in the sheet's IF formulas).
 const WHEEL_OPTIONS = [
-  { label: '+$25',                  type: 'cash' },
-  { label: '+$50',                  type: 'cash' },
-  { label: '+$100',                 type: 'cash' },
+  { label: 'Cash $5',               type: 'cash' },
+  { label: 'Cash $25',              type: 'cash' },
+  { label: 'Cash $50',              type: 'cash' },
+  { label: 'Cash $100',             type: 'cash' },
   { label: '100 SC',                type: 'sc' },
   { label: 'Gamble $1,000 more',    type: 'other' },
   { label: 'Gamble $500 tomorrow',  type: 'other' },
@@ -279,7 +284,7 @@ function renderWheelFrequency(days) {
       // Auto-classify by content so styling still works
       types[d.wheelResult] =
         d.wheelResult.includes('SC') ? 'sc' :
-        d.wheelResult.startsWith('+$') ? 'cash' : 'other';
+        /^(cash\s|\$)/i.test(d.wheelResult) ? 'cash' : 'other';
     }
     counts[d.wheelResult]++;
   });
@@ -380,7 +385,7 @@ function renderDailyLog(days) {
   reversed.forEach((d) => {
     const tr = document.createElement('tr');
     const pillClass = d.wheelResult
-      ? (d.wheelResult.includes('SC') ? 'is-sc' : (d.wheelResult.startsWith('+$') ? 'is-cash' : 'is-other'))
+      ? (d.wheelResult.includes('SC') ? 'is-sc' : (/^(cash\s|\$)/i.test(d.wheelResult) ? 'is-cash' : 'is-other'))
       : 'is-other';
     const wheelCell = d.wheelResult
       ? `<span class="wheel-pill ${pillClass}">${escapeHtml(d.wheelResult)}</span>`
