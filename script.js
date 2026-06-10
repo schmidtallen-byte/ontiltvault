@@ -192,7 +192,7 @@ function renderChart(days) {
 
   if (window._vaultChart) { window._vaultChart.destroy(); }
 
-  const labels = days.map((d) => fmtShortDate(dayToDate(d.day)));
+  const labels = days.map((d) => fmtShortDate(parseSheetDate(d.date, d.day)));
   const values = days.map((d) => d.vaultTotal || 0);
 
   // gold gradient fill
@@ -339,7 +339,7 @@ function renderRecentActivity(days) {
       ? `Day ${d.day} added <b>${fmtCurrency(d.dailyVaultAdd)}</b> to the vault`
       : `Day ${d.day} logged`;
     const wheelBit = d.wheelResult ? `Wheel: ${d.wheelResult}` : 'No wheel result';
-    const dateBit = fmtMediumDate(dayToDate(d.day));
+    const dateBit = fmtMediumDate(parseSheetDate(d.date, d.day));
 
     const li = document.createElement('li');
     li.innerHTML = `
@@ -365,7 +365,7 @@ function renderMystery(days) {
     const item = document.createElement('div');
     item.className = 'mystery-item';
     item.innerHTML = `
-      <p class="mystery-day">Day ${d.day} · ${fmtMediumDate(dayToDate(d.day))}</p>
+      <p class="mystery-day">Day ${d.day} · ${fmtMediumDate(parseSheetDate(d.date, d.day))}</p>
       <p class="mystery-desc">${escapeHtml(d.mysteryGift)}</p>
     `;
     grid.appendChild(item);
@@ -400,7 +400,7 @@ function renderDailyLog(days) {
 
     tr.innerHTML = `
       <td class="col-day">${d.day}</td>
-      <td class="col-date">${fmtShortDate(dayToDate(d.day))}</td>
+      <td class="col-date">${fmtShortDate(parseSheetDate(d.date, d.day))}</td>
       <td class="col-vault">${fmtCurrency(d.dailyVaultAdd)}</td>
       <td class="col-wheel">${wheelCell}</td>
       <td class="col-vod">${vodCell}</td>
@@ -435,6 +435,34 @@ function dayToDate(dayNum) {
   const start = new Date(y, m - 1, d);
   start.setDate(start.getDate() + (dayNum - 1));
   return start;
+}
+
+// Use the actual date from the sheet (handles skipped/rescheduled days).
+// Falls back to day-offset computation if the sheet didn't send a date.
+// Handles ISO (2026-06-10), slash (6/10 or 6/10/2026), and day-prefixed
+// formats (Wed 6/10) — whatever Google Sheets exports based on the cell format.
+function parseSheetDate(dateStr, fallbackDayNum) {
+  if (!dateStr) return dayToDate(fallbackDayNum);
+
+  // ISO: 2026-06-10
+  const iso = dateStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    return new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
+  }
+
+  // Slash: 6/10 or 6/10/2026 (with optional weekday prefix like "Wed 6/10")
+  const slash = dateStr.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (slash) {
+    const month = parseInt(slash[1]);
+    const day = parseInt(slash[2]);
+    let year = slash[3]
+      ? parseInt(slash[3])
+      : parseInt(CONFIG.startDate.split('-')[0]);
+    if (year < 100) year += 2000;
+    return new Date(year, month - 1, day);
+  }
+
+  return dayToDate(fallbackDayNum);
 }
 
 function fmtShortDate(date) {
